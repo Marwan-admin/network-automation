@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NetAuto Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0f1e; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 20px; }
+    h1 { color: #22d3ee; margin-bottom: 20px; font-size: 1.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; }
+    .card h3 { font-size: 0.75rem; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+    .status { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: bold; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .up { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+    .down { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+    .ip { color: #94a3b8; font-size: 0.85rem; margin-top: 4px; }
+    .btn { background: #1e293b; border: 1px solid #334155; color: #22d3ee; padding: 8px 16px;
+           border-radius: 8px; cursor: pointer; font-family: monospace; margin: 4px; font-size: 0.85rem; }
+    .btn:hover { background: #22d3ee; color: #0a0f1e; }
+    .output { background: #000; border: 1px solid #22d3ee33; border-radius: 8px; padding: 16px;
+              font-size: 0.8rem; color: #4ade80; white-space: pre-wrap; min-height: 100px;
+              margin-top: 16px; max-height: 300px; overflow-y: auto; }
+    .section { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .section h2 { color: #22d3ee; margin-bottom: 12px; font-size: 1rem; }
+    .time { color: #475569; font-size: 0.75rem; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>⬡ NetAutomation Dashboard</h1>
+  <div class="time" id="time"></div>
+
+  <div class="grid" id="devices"></div>
+
+  <div class="section">
+    <h2>Commands</h2>
+    <button class="btn" onclick="getInterfaces('R1')">R1 — show interfaces</button>
+    <button class="btn" onclick="getInterfaces('SW1')">SW1 — show interfaces</button>
+    <button class="btn" onclick="getVlans()">SW1 — show vlans</button>
+    <button class="btn" onclick="doBackup('R1')">Backup R1</button>
+    <button class="btn" onclick="doBackup('SW1')">Backup SW1</button>
+    <div class="output" id="output">-- output will appear here --</div>
+  </div>
+
+  <script>
+    function updateTime() {
+      document.getElementById("time").textContent = new Date().toLocaleString();
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    async function loadStatus() {
+      const res = await fetch("/api/status");
+      const devices = await res.json();
+      const grid = document.getElementById("devices");
+      grid.innerHTML = devices.map(d => `
+        <div class="card">
+          <h3>Device</h3>
+          <div class="status">
+            <div class="dot ${d.status}"></div>
+            <span>${d.name}</span>
+          </div>
+          <div class="ip">${d.ip}</div>
+          <div class="ip" style="margin-top:8px;color:${d.status==='up'?'#4ade80':'#ef4444'}">
+            ${d.status.toUpperCase()}
+          </div>
+        </div>`).join("");
+    }
+
+    async function getInterfaces(device) {
+      document.getElementById("output").textContent = "Loading...";
+      const res = await fetch(`/api/interfaces/${device}`);
+      const data = await res.json();
+      document.getElementById("output").textContent = data.output || data.error;
+    }
+
+    async function getVlans() {
+      document.getElementById("output").textContent = "Loading...";
+      const res = await fetch("/api/vlans");
+      const data = await res.json();
+      document.getElementById("output").textContent = data.output || data.error;
+    }
+
+    async function doBackup(device) {
+      document.getElementById("output").textContent = "Running backup...";
+      const res = await fetch(`/api/backup/${device}`, { method: "POST" });
+      const data = await res.json();
+      document.getElementById("output").textContent =
+        data.file ? `✅ Backup saved: ${data.file}` : `❌ Error: ${data.error}`;
+    }
+
+    loadStatus();
+    setInterval(loadStatus, 30000);
+  </script>
+</body>
+</html>
