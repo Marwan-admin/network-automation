@@ -18,28 +18,89 @@
     .btn { background: #1e293b; border: 1px solid #334155; color: #22d3ee; padding: 8px 16px;
            border-radius: 8px; cursor: pointer; font-family: monospace; margin: 4px; font-size: 0.85rem; }
     .btn:hover { background: #22d3ee; color: #0a0f1e; }
+    .btn-fg { background: #1e293b; border: 1px solid #334155; color: #f97316; padding: 8px 16px;
+              border-radius: 8px; cursor: pointer; font-family: monospace; margin: 4px; font-size: 0.85rem; }
+    .btn-fg:hover { background: #f97316; color: #0a0f1e; }
     .output { background: #000; border: 1px solid #22d3ee33; border-radius: 8px; padding: 16px;
               font-size: 0.8rem; color: #4ade80; white-space: pre-wrap; min-height: 100px;
               margin-top: 16px; max-height: 300px; overflow-y: auto; }
+    .output-fg { background: #000; border: 1px solid #f9731633; border-radius: 8px; padding: 16px;
+                 font-size: 0.8rem; color: #f97316; white-space: pre-wrap; min-height: 100px;
+                 margin-top: 16px; max-height: 300px; overflow-y: auto; }
     .section { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
     .section h2 { color: #22d3ee; margin-bottom: 12px; font-size: 1rem; }
+    .section-fg { background: #0f172a; border: 1px solid #f9731622; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .section-fg h2 { color: #f97316; margin-bottom: 12px; font-size: 1rem; }
+    .fg-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.8rem; }
+    .fg-table th { color: #64748b; text-align: left; padding: 6px 10px; border-bottom: 1px solid #1e293b; }
+    .fg-table td { padding: 6px 10px; border-bottom: 1px solid #0f172a; color: #e2e8f0; }
+    .fg-table tr:hover td { background: #1e293b; }
+    .badge-up { color: #4ade80; font-size: 0.75rem; }
+    .badge-down { color: #ef4444; font-size: 0.75rem; }
+    .badge-accept { color: #4ade80; font-size: 0.75rem; }
     .time { color: #475569; font-size: 0.75rem; margin-bottom: 20px; }
+    .divider { border: none; border-top: 1px solid #1e293b; margin: 20px 0; }
   </style>
 </head>
 <body>
   <h1>⬡ NetAutomation Dashboard</h1>
   <div class="time" id="time"></div>
 
+  <!-- Cisco Devices Status -->
   <div class="grid" id="devices"></div>
 
+  <!-- Cisco Commands -->
   <div class="section">
-    <h2>Commands</h2>
+    <h2>Commands — Cisco</h2>
     <button class="btn" onclick="getInterfaces('R1')">R1 — show interfaces</button>
     <button class="btn" onclick="getInterfaces('SW1')">SW1 — show interfaces</button>
     <button class="btn" onclick="getVlans()">SW1 — show vlans</button>
     <button class="btn" onclick="doBackup('R1')">Backup R1</button>
     <button class="btn" onclick="doBackup('SW1')">Backup SW1</button>
     <div class="output" id="output">-- output will appear here --</div>
+  </div>
+
+  <!-- Fortigate Section -->
+  <div class="section-fg">
+    <h2>🔥 Fortigate Firewall — 192.168.8.29</h2>
+
+    <button class="btn-fg" onclick="fgInterfaces()">Show Interfaces</button>
+    <button class="btn-fg" onclick="fgPolicies()">Show Policies</button>
+    <button class="btn-fg" onclick="fgBackup()">Backup Config</button>
+
+    <!-- Interfaces Table -->
+    <div id="fg-interfaces-section" style="display:none; margin-top:16px;">
+      <h3 style="color:#94a3b8; font-size:0.8rem; margin-bottom:8px;">INTERFACES</h3>
+      <table class="fg-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>IP Address</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="fg-interfaces-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Policies Table -->
+    <div id="fg-policies-section" style="display:none; margin-top:16px;">
+      <h3 style="color:#94a3b8; font-size:0.8rem; margin-bottom:8px;">FIREWALL POLICIES</h3>
+      <table class="fg-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Source</th>
+            <th>Destination</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="fg-policies-body"></tbody>
+      </table>
+    </div>
+
+    <div class="output-fg" id="fg-output" style="display:none;"></div>
   </div>
 
   <script>
@@ -49,6 +110,7 @@
     setInterval(updateTime, 1000);
     updateTime();
 
+    // ── Cisco ──────────────────────────────────
     async function loadStatus() {
       const res = await fetch("/api/status");
       const devices = await res.json();
@@ -87,6 +149,54 @@
       const data = await res.json();
       document.getElementById("output").textContent =
         data.file ? `✅ Backup saved: ${data.file}` : `❌ Error: ${data.error}`;
+    }
+
+    // ── Fortigate ──────────────────────────────
+    async function fgInterfaces() {
+      document.getElementById("fg-policies-section").style.display = "none";
+      document.getElementById("fg-output").style.display = "none";
+      const res = await fetch("/api/fortigate/interfaces");
+      const data = await res.json();
+      const tbody = document.getElementById("fg-interfaces-body");
+      tbody.innerHTML = data.map(i => `
+        <tr>
+          <td>${i.name}</td>
+          <td>${i.ip}</td>
+          <td class="${i.status === 'up' ? 'badge-up' : 'badge-down'}">
+            ${i.status.toUpperCase()}
+          </td>
+        </tr>`).join("");
+      document.getElementById("fg-interfaces-section").style.display = "block";
+    }
+
+    async function fgPolicies() {
+      document.getElementById("fg-interfaces-section").style.display = "none";
+      document.getElementById("fg-output").style.display = "none";
+      const res = await fetch("/api/fortigate/policies");
+      const data = await res.json();
+      const tbody = document.getElementById("fg-policies-body");
+      tbody.innerHTML = data.map(p => `
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.name}</td>
+          <td>${p.srcintf}</td>
+          <td>${p.dstintf}</td>
+          <td class="badge-accept">${p.action.toUpperCase()}</td>
+        </tr>`).join("");
+      document.getElementById("fg-policies-section").style.display = "block";
+    }
+
+    async function fgBackup() {
+      const out = document.getElementById("fg-output");
+      out.style.display = "block";
+      document.getElementById("fg-interfaces-section").style.display = "none";
+      document.getElementById("fg-policies-section").style.display = "none";
+      out.textContent = "Running Fortigate backup...";
+      const res = await fetch("/api/fortigate/backup", { method: "POST" });
+      const data = await res.json();
+      out.textContent = data.file
+        ? `✅ Backup saved: ${data.file}`
+        : `❌ Error: ${data.error}`;
     }
 
     loadStatus();

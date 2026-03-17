@@ -3,8 +3,14 @@ import subprocess
 import datetime
 from devices import DEVICES
 from netmiko import ConnectHandler
+from fortigate.fortigate_api import FortigateAPI
 
 app = Flask(__name__)
+
+FG = FortigateAPI(
+    host="192.168.8.29",
+    api_key="ffGzfzhfzcz0q0NHj19dgd615dNtxx"
+)
 
 def ping(ip):
     result = subprocess.run(
@@ -24,6 +30,8 @@ DEVICE_IPS = {
     "R1": "192.168.8.10",
     "SW1": "192.168.8.20",
 }
+
+# ── Cisco Routes ──────────────────────────────
 
 @app.route("/api/status")
 def status():
@@ -66,6 +74,54 @@ def backup(device):
         return jsonify({"status": "success", "file": fname})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ── Fortigate Routes ──────────────────────────
+
+@app.route("/api/fortigate/interfaces")
+def fg_interfaces():
+    try:
+        data = FG.get_interfaces()
+        result = []
+        for iface in data["results"]:
+            result.append({
+                "name": iface["name"],
+                "ip": iface["ip"],
+                "status": iface["status"]
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/fortigate/policies")
+def fg_policies():
+    try:
+        data = FG.get_policies()
+        result = []
+        for policy in data["results"]:
+            result.append({
+                "id": policy["policyid"],
+                "name": policy["name"],
+                "srcintf": policy["srcintf"][0]["name"],
+                "dstintf": policy["dstintf"][0]["name"],
+                "action": policy["action"]
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/fortigate/backup", methods=["POST"])
+def fg_backup():
+    try:
+        config = FG.backup_config()
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        fname = f"backups/fortigate_{ts}.cfg"
+        with open(fname, "w") as f:
+            f.write(config)
+        return jsonify({"status": "success", "file": fname})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ── Dashboard ─────────────────────────────────
 
 @app.route("/")
 def index():
