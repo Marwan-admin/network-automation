@@ -1,9 +1,10 @@
 from fortigate.fortigate_api import FortigateAPI
+from config import FORTIGATE_IP, FORTIGATE_KEY
 
-fg = FortigateAPI(
-    host="192.168.8.29",
-    api_key="ffGzfzhfzcz0q0NHj19dgd615dNtxx"
-)
+
+fg = FortigateAPI(host=FORTIGATE_IP, api_key=FORTIGATE_KEY)
+
+
 
 print("=== Interfaces ===")
 interfaces = fg.get_interfaces()

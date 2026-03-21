@@ -4,13 +4,12 @@ import datetime
 from devices import DEVICES
 from netmiko import ConnectHandler
 from fortigate.fortigate_api import FortigateAPI
+from config import FORTIGATE_IP, FORTIGATE_KEY
 
 app = Flask(__name__)
 
-FG = FortigateAPI(
-    host="192.168.8.29",
-    api_key="ffGzfzhfzcz0q0NHj19dgd615dNtxx"
-)
+FG = FortigateAPI(host=FORTIGATE_IP, api_key=FORTIGATE_KEY)
+
 
 def ping(ip):
     result = subprocess.run(
